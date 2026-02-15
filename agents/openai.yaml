@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sails Idiomatic Dev"
+  short_description: "Idiomatic Sails + awesome-sails patterns"
+  default_prompt: "Use $sails-idiomatic-dev to design an idiomatic Sails program with solid state access and tests."

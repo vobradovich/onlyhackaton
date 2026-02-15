@@ -1,0 +1,13 @@
+constructor {
+  Create : ();
+};
+
+service Onlyhack {
+  /// #[payable]
+  BuyContent : (model_id: actor_id, content_id: u64, _pkey: str) -> struct { bool, str, str };
+  ModelAddPaidContent : (paid_content: vec struct { str, u128 }) -> null;
+  ModelCreateProfile : (name: str, about: str, open_content: vec str) -> null;
+  query GetAllPurchasedContent : () -> vec struct { u64, str };
+  query GetProfile : (model_id: actor_id) -> struct { str, str, vec struct { u64, str }, vec struct { u64, struct { str, u128 } } };
+};
+
