@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, List, ListItem, Paragraph, Row, Table, Wrap},
+    widgets::{Block, Borders, Cell, Clear, List, ListItem, Paragraph, Row, Table, Wrap},
     Frame,
 };
 
@@ -24,7 +24,7 @@ pub fn draw(frame: &mut Frame, app: &AppState) {
             "OnlyNak3d TUI ",
             Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
         ),
-        Span::raw("| Tab switch role | q quit | r refresh"),
+        Span::raw("| Tab switch role | q quit | r refresh | x close decrypted"),
     ])];
     header_lines.extend(role_avatar_lines(app.role));
 
@@ -58,6 +58,45 @@ pub fn draw(frame: &mut Frame, app: &AppState) {
     .block(Block::default().borders(Borders::ALL).title("Status"))
     .wrap(Wrap { trim: true });
     frame.render_widget(footer, chunks[3]);
+
+    if !app.decrypted.is_empty() {
+        draw_decrypted_modal(frame, &app.decrypted);
+    }
+}
+
+fn draw_decrypted_modal(frame: &mut Frame, decrypted: &str) {
+    let popup_area = centered_rect(70, 50, frame.area());
+    frame.render_widget(Clear, popup_area);
+
+    let content = Paragraph::new(format!("{decrypted}\n\nPress 'x' to close"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Decrypted Content")
+                .border_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        )
+        .wrap(Wrap { trim: true });
+    frame.render_widget(content, popup_area);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, area: ratatui::layout::Rect) -> ratatui::layout::Rect {
+    let vertical = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(area);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(vertical[1])[1]
 }
 
 fn role_avatar_lines(role: Role) -> Vec<Line<'static>> {
@@ -308,8 +347,8 @@ fn draw_fan(frame: &mut Frame, app: &AppState, area: ratatui::layout::Rect) {
     .block(Block::default().borders(Borders::ALL).title("Summary"));
     frame.render_widget(summary, right_chunks[0]);
 
-    let decrypted = Paragraph::new(app.decrypted.as_str())
-        .block(Block::default().borders(Borders::ALL).title("Decrypted Last Purchase"))
+    let decrypted = Paragraph::new("When content is purchased, decrypted payload opens in center popup.")
+        .block(Block::default().borders(Borders::ALL).title("Decryption"))
         .wrap(Wrap { trim: true });
     frame.render_widget(decrypted, right_chunks[1]);
 }

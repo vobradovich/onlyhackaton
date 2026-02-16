@@ -75,6 +75,18 @@ fn run_loop(
             continue;
         }
 
+        if !app.decrypted.is_empty() {
+            match key.code {
+                KeyCode::Char('q') => return Ok(()),
+                KeyCode::Char('x') => {
+                    app.decrypted.clear();
+                    app.status = "Closed decrypted content popup".to_string();
+                }
+                _ => {}
+            }
+            continue;
+        }
+
         if app.role == Role::Model && app.create_profile_prompt.is_some() {
             match key.code {
                 KeyCode::Esc => {
