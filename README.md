@@ -29,6 +29,20 @@ cargo build --release
 cargo test --release
 ```
 
+## Run TUI
+
+Run the terminal UI (local simulation mode):
+
+```bash
+cargo run -p onlyhack-tui
+```
+
+Notes:
+- First run creates `fan_key.json` in the repo root.
+- Role switch: `Tab`
+- Quit: `q`
+- Refresh: `r`
+
 ## License
 
 The source code is licensed under the [MIT license](LICENSE).
