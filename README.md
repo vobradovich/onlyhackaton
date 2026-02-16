@@ -1,27 +1,34 @@
-## The **onlyhack** program
+# OnlyNak3d
 
-[![Build Status](https://github.com/gear-tech/onlyhack/workflows/CI/badge.svg)](https://github.com/gear-tech/onlyhack/actions)
+OnlyNak3d is an on-chain creator content service built for Gear Protocol with Sails.
 
-Program **onlyhack** for [⚙️ Gear Protocol](https://github.com/gear-tech/gear) written in [⛵ Sails](https://github.com/gear-tech/sails) framework.
+- Models create profiles, publish previews, and attach paid encrypted content.
+- Fans browse paid content and buy access to a specific item.
+- The contract verifies model-issued cryptographic grants, stores buyer-specific encrypted grants, and splits payment between model payout and protocol fee.
 
-The program workspace includes the following packages:
-- `onlyhack` is the package allowing to build WASM binary for the program and IDL file for it.
-  The package also includes integration tests for the program in the `tests` sub-folder
-- `onlyhack-app` is the package containing business logic for the program represented by the `Onlyhack` structure.
-- `onlyhack-client` is the package containing the client for the program allowing to interact with it from another program, tests, or off-chain client.
+The workspace includes:
+- `onlyhack`: WASM/IDL build target and integration tests.
+- `onlyhack-app`: contract business logic.
+- `onlyhack-client`: client for program/test/off-chain interaction.
+- `tui`: terminal UI (`ratatui + crossterm`) for local simulation with MODEL/FAN flows.
 
-### 🏗️ Building
+## Docs
+
+- Architecture and contract API: [ARCH.md](ARCH.md)
+- Terminal UI behavior and keybindings: [TUI.md](TUI.md)
+
+## Build
 
 ```bash
 cargo build --release
 ```
 
-### ✅ Testing
+## Test
 
 ```bash
 cargo test --release
 ```
 
-# License
+## License
 
 The source code is licensed under the [MIT license](LICENSE).
