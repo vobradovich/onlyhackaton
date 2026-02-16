@@ -1611,6 +1611,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dleq-secret"
+version = "0.1.0"
+source = "git+https://github.com/grishasobol/dleq-secret#f295c120d1b8ca55d7747af08b63589bdc367374"
+dependencies = [
+ "curve25519-dalek",
+ "parity-scale-codec",
+ "rand_core 0.6.4",
+ "scale-info",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "docify"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4559,6 +4571,7 @@ checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 name = "onlyhack"
 version = "0.1.0"
 dependencies = [
+ "dleq-secret",
  "onlyhack-app",
  "onlyhack-client",
  "sails-rs",
@@ -4569,6 +4582,8 @@ dependencies = [
 name = "onlyhack-app"
 version = "0.1.0"
 dependencies = [
+ "dleq-secret",
+ "hex",
  "parity-scale-codec",
  "sails-rs",
  "scale-info",

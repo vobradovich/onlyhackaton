@@ -19,6 +19,7 @@ onlyhack-app.workspace = true
 onlyhack-client.workspace = true
 sails-rs = { workspace = true, features = ["gtest", "gclient"] }
 tokio = { workspace = true, features = ["rt", "macros"] }
+dleq-secret = { git = "https://github.com/grishasobol/dleq-secret" }
 
 [build-dependencies]
 onlyhack-app.workspace = true

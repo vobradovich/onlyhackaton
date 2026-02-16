@@ -4,10 +4,11 @@ constructor {
 
 service Onlyhack {
   /// #[payable]
-  BuyContent : (model_id: actor_id, content_id: u64, _pkey: str) -> struct { bool, str, str };
-  ModelAddPaidContent : (paid_content: vec struct { str, u128 }) -> null;
+  /// #[returns_value]
+  BuyContent : (model_id: actor_id, content_id: u64, pk_bytes: str) -> vec u8;
+  ModelAddPaidContent : (paid_content: struct { str, str, u128 }) -> u64;
   ModelCreateProfile : (name: str, about: str, open_content: vec str) -> null;
-  query GetAllPurchasedContent : () -> vec struct { u64, str };
-  query GetProfile : (model_id: actor_id) -> struct { str, str, vec struct { u64, str }, vec struct { u64, struct { str, u128 } } };
+  query GetEncContent : (model_id: actor_id, content_id: u64) -> vec u8;
+  query GetProfile : (model_id: actor_id) -> struct { str, str, vec struct { u64, str }, vec struct { u64, struct { str, str, u128 } } };
 };
 

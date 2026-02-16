@@ -38,15 +38,16 @@ pub mod onlyhack {
     pub trait Onlyhack {
         type Env: sails_rs::client::GearEnv;
         /// #[payable]
+        /// #[returns_value]
         fn buy_content(
             &mut self,
             model_id: ActorId,
             content_id: u64,
-            _pkey: String,
+            pk_bytes: String,
         ) -> sails_rs::client::PendingCall<io::BuyContent, Self::Env>;
         fn model_add_paid_content(
             &mut self,
-            paid_content: Vec<(String, u128)>,
+            paid_content: (String, String, u128),
         ) -> sails_rs::client::PendingCall<io::ModelAddPaidContent, Self::Env>;
         fn model_create_profile(
             &mut self,
@@ -54,9 +55,11 @@ pub mod onlyhack {
             about: String,
             open_content: Vec<String>,
         ) -> sails_rs::client::PendingCall<io::ModelCreateProfile, Self::Env>;
-        fn get_all_purchased_content(
+        fn get_enc_content(
             &self,
-        ) -> sails_rs::client::PendingCall<io::GetAllPurchasedContent, Self::Env>;
+            model_id: ActorId,
+            content_id: u64,
+        ) -> sails_rs::client::PendingCall<io::GetEncContent, Self::Env>;
         fn get_profile(
             &self,
             model_id: ActorId,
@@ -69,13 +72,13 @@ pub mod onlyhack {
             &mut self,
             model_id: ActorId,
             content_id: u64,
-            _pkey: String,
+            pk_bytes: String,
         ) -> sails_rs::client::PendingCall<io::BuyContent, Self::Env> {
-            self.pending_call((model_id, content_id, _pkey))
+            self.pending_call((model_id, content_id, pk_bytes))
         }
         fn model_add_paid_content(
             &mut self,
-            paid_content: Vec<(String, u128)>,
+            paid_content: (String, String, u128),
         ) -> sails_rs::client::PendingCall<io::ModelAddPaidContent, Self::Env> {
             self.pending_call((paid_content,))
         }
@@ -87,10 +90,12 @@ pub mod onlyhack {
         ) -> sails_rs::client::PendingCall<io::ModelCreateProfile, Self::Env> {
             self.pending_call((name, about, open_content))
         }
-        fn get_all_purchased_content(
+        fn get_enc_content(
             &self,
-        ) -> sails_rs::client::PendingCall<io::GetAllPurchasedContent, Self::Env> {
-            self.pending_call(())
+            model_id: ActorId,
+            content_id: u64,
+        ) -> sails_rs::client::PendingCall<io::GetEncContent, Self::Env> {
+            self.pending_call((model_id, content_id))
         }
         fn get_profile(
             &self,
@@ -102,10 +107,10 @@ pub mod onlyhack {
 
     pub mod io {
         use super::*;
-        sails_rs::io_struct_impl!(BuyContent (model_id: ActorId, content_id: u64, _pkey: String) -> (bool,String,String,));
-        sails_rs::io_struct_impl!(ModelAddPaidContent (paid_content: Vec<(String,u128,)>) -> ());
+        sails_rs::io_struct_impl!(BuyContent (model_id: ActorId, content_id: u64, pk_bytes: String) -> Vec<u8>);
+        sails_rs::io_struct_impl!(ModelAddPaidContent (paid_content: (String,String,u128,)) -> u64);
         sails_rs::io_struct_impl!(ModelCreateProfile (name: String, about: String, open_content: Vec<String>) -> ());
-        sails_rs::io_struct_impl!(GetAllPurchasedContent () -> Vec<(u64,String,)>);
-        sails_rs::io_struct_impl!(GetProfile (model_id: ActorId) -> (String,String,Vec<(u64,String,)>,Vec<(u64,(String,u128,),)>,));
+        sails_rs::io_struct_impl!(GetEncContent (model_id: ActorId, content_id: u64) -> Vec<u8>);
+        sails_rs::io_struct_impl!(GetProfile (model_id: ActorId) -> (String,String,Vec<(u64,String,)>,Vec<(u64,(String,String,u128,),)>,));
     }
 }
