@@ -1,0 +1,18 @@
+[package]
+name = "onlyhack-tui"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+onlyhack = { path = ".." }
+onlyhack-client.workspace = true
+sails-rs = { workspace = true, features = ["gtest", "gclient"] }
+tokio = { workspace = true, features = ["rt", "macros"] }
+dleq-secret = { git = "https://github.com/grishasobol/dleq-secret" }
+ratatui = "0.29"
+crossterm = "0.28"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
