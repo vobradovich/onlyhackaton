@@ -208,9 +208,9 @@ impl Onlyhack {
             .get(&content_id)
             .expect("paid content not found");
 
-        if transferred < paid_content.price {
+        if transferred != paid_content.price {
             panic!(
-                "not enough payment, got {}, expected {}",
+                "invalid payment, got {}, expected exactly {}",
                 transferred, paid_content.price
             );
         }

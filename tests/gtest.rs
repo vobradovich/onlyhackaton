@@ -7,6 +7,13 @@ const MODEL_ID: u64 = 42;
 const FAN_ID: u64 = 43;
 const STRANGER_ID: u64 = 44;
 
+fn print_get_profiles_markdown(label: &str, profiles: &onlyhack_client::GetProfilesResponse) {
+    println!(
+        "\n# {label}\n{}",
+        onlyhack_client::format_get_profiles_markdown(profiles)
+    );
+}
+
 #[tokio::test]
 async fn mvp_purchase_flow_works() {
     let system = System::new();
@@ -102,8 +109,10 @@ async fn mvp_purchase_flow_works() {
 
     println!("Point: {x:?}");
 
-
-    let enc = service_client.get_enc_content(MODEL_ID.into(), content_id).await.unwrap();
+    let enc = service_client
+        .get_enc_content(MODEL_ID.into(), content_id)
+        .await
+        .unwrap();
 
     let dec_content = x.unwrap().decrypt(enc, user.sk);
     assert_eq!(dec_content, content);
@@ -123,7 +132,10 @@ async fn mvp_purchase_flow_works() {
     );
     assert_eq!(program.balance(), program_balance_before + fee);
 
-    println!("Decrypted content: {:?}", String::from_utf8(dec_content).unwrap());
+    println!(
+        "Decrypted content: {:?}",
+        String::from_utf8(dec_content).unwrap()
+    );
 
     // let failed_purchase = service_client
     //     .buy_content(MODEL_ID.into(), 1, "user-pkey".to_string())
@@ -212,7 +224,11 @@ async fn get_profiles_hides_purchased_content_from_hidden_list() {
     let mut service_client = program.onlyhack();
 
     service_client
-        .model_create_profile("alice".into(), "model".into(), vec!["free-teaser".to_string()])
+        .model_create_profile(
+            "alice".into(),
+            "model".into(),
+            vec!["free-teaser".to_string()],
+        )
         .with_params(|p| p.with_actor_id(MODEL_ID.into()))
         .await
         .unwrap();
@@ -220,7 +236,11 @@ async fn get_profiles_hides_purchased_content_from_hidden_list() {
     let content_a = b"paid-a-real".to_vec();
     let (public_data_a, pre_proof_a) = dleq_secret::pre_proof_and_public_for_message(&content_a);
     let content_a_id = service_client
-        .model_add_paid_content(("paid-a-preview".to_string(), hex::encode(public_data_a.encode()), 55))
+        .model_add_paid_content((
+            "paid-a-preview".to_string(),
+            hex::encode(public_data_a.encode()),
+            55,
+        ))
         .with_params(|p| p.with_actor_id(MODEL_ID.into()))
         .await
         .unwrap();
@@ -228,7 +248,11 @@ async fn get_profiles_hides_purchased_content_from_hidden_list() {
     let content_b = b"paid-b-real".to_vec();
     let (public_data_b, _) = dleq_secret::pre_proof_and_public_for_message(&content_b);
     let content_b_id = service_client
-        .model_add_paid_content(("paid-b-preview".to_string(), hex::encode(public_data_b.encode()), 77))
+        .model_add_paid_content((
+            "paid-b-preview".to_string(),
+            hex::encode(public_data_b.encode()),
+            77,
+        ))
         .with_params(|p| p.with_actor_id(MODEL_ID.into()))
         .await
         .unwrap();
@@ -282,32 +306,72 @@ async fn get_profiles_hides_purchased_content_from_hidden_list() {
     );
     assert_eq!(program.balance(), program_balance_before + fee);
 
-    let profiles_for_fan = service_client
+    let profiles_resposne = service_client
         .get_profiles()
         .with_params(|p| p.with_actor_id(FAN_ID.into()))
         .await
         .unwrap();
+    let profiles_for_fan = onlyhack_client::GetProfilesResponse {
+        profiles: profiles_resposne.into_iter().map(Into::into).collect(),
+    };
+    print_get_profiles_markdown("FAN VIEW", &profiles_for_fan);
     let fan_model_profile = profiles_for_fan
+        .profiles
         .iter()
-        .find(|profile| profile.0 == "alice")
+        .find(|profile| profile.name == "alice")
         .expect("alice profile should exist");
 
-    assert!(fan_model_profile.3.iter().any(|item| item.0 == content_a_id));
-    assert!(!fan_model_profile.3.iter().any(|item| item.0 == content_b_id));
-    assert!(!fan_model_profile.4.iter().any(|item| item.0 == content_a_id));
-    assert!(fan_model_profile.4.iter().any(|item| item.0 == content_b_id));
+    assert!(
+        fan_model_profile
+            .purchased_content
+            .iter()
+            .any(|item| item.content_id == content_a_id)
+    );
+    assert!(
+        !fan_model_profile
+            .purchased_content
+            .iter()
+            .any(|item| item.content_id == content_b_id)
+    );
+    assert!(
+        !fan_model_profile
+            .hidden_content
+            .iter()
+            .any(|item| item.content_id == content_a_id)
+    );
+    assert!(
+        fan_model_profile
+            .hidden_content
+            .iter()
+            .any(|item| item.content_id == content_b_id)
+    );
 
-    let profiles_for_stranger = service_client
+    let profiles_resposne = service_client
         .get_profiles()
         .with_params(|p| p.with_actor_id(STRANGER_ID.into()))
         .await
         .unwrap();
+    let profiles_for_stranger = onlyhack_client::GetProfilesResponse {
+        profiles: profiles_resposne.into_iter().map(Into::into).collect(),
+    };
+    print_get_profiles_markdown("STRANGER VIEW", &profiles_for_stranger);
     let stranger_model_profile = profiles_for_stranger
+        .profiles
         .iter()
-        .find(|profile| profile.0 == "alice")
+        .find(|profile| profile.name == "alice")
         .expect("alice profile should exist");
 
-    assert!(stranger_model_profile.3.is_empty());
-    assert!(stranger_model_profile.4.iter().any(|item| item.0 == content_a_id));
-    assert!(stranger_model_profile.4.iter().any(|item| item.0 == content_b_id));
+    assert!(stranger_model_profile.purchased_content.is_empty());
+    assert!(
+        stranger_model_profile
+            .hidden_content
+            .iter()
+            .any(|item| item.content_id == content_a_id)
+    );
+    assert!(
+        stranger_model_profile
+            .hidden_content
+            .iter()
+            .any(|item| item.content_id == content_b_id)
+    );
 }
