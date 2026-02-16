@@ -1,6 +1,6 @@
-# OnlyNak3d
+# Nak3dCrypto
 
-OnlyNak3d is an on-chain creator content service built for Gear Protocol with Sails.
+Nak3dCrypto is an on-chain creator content service built for Gear Protocol with Sails.
 
 - Models create profiles, publish previews, and attach paid encrypted content.
 - Fans browse paid content and buy access to a specific item.
