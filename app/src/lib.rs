@@ -5,7 +5,6 @@ use sails_rs::{
     gstd,
     prelude::{collections::BTreeMap, *},
 };
-use scale_info::build::state;
 
 pub type ContentId = u64;
 pub type PaidContentTuple = (String, String, u128);
@@ -16,36 +15,17 @@ pub type ProfileTuple = (
     Vec<(ContentId, PaidContentTuple)>,
 );
 
-#[derive(Clone, Debug, Encode, Decode, TypeInfo)]
-struct OpenContentInfo {
-    content_id: ContentId,
-    preview: String,
-}
+type OpenContentInfo = (ContentId, String);
+type HiddenContentInfo = (ContentId, String, u128);
+type PurchasedContentInfo = (ContentId, String, u128, Vec<u8>, Vec<u8>);
 
-#[derive(Clone, Debug, Encode, Decode, TypeInfo)]
-struct HiddenContentInfo {
-    content_id: ContentId,
-    preview: String,
-    price: u128,
-}
-
-#[derive(Clone, Debug, Encode, Decode, TypeInfo)]
-struct PurchasedContentInfo {
-    content_id: ContentId,
-    preview: String,
-    price: u128,
-    enc_content: Vec<u8>,
-    m_under_pk: ElGamalPointCipher,
-}
-
-#[derive(Clone, Debug, Encode, Decode, TypeInfo)]
-struct ProfileInfo {
-    name: String,
-    about: String,
-    open_content: Vec<OpenContentInfo>,
-    purchased_content: Vec<PurchasedContentInfo>,
-    hidden_content: Vec<HiddenContentInfo>,
-}
+type ProfileInfo = (
+    String,
+    String,
+    Vec<OpenContentInfo>,
+    Vec<PurchasedContentInfo>,
+    Vec<HiddenContentInfo>,
+);
 
 #[derive(Clone, Debug, Encode, Decode, TypeInfo)]
 pub struct PaidContent {
@@ -65,7 +45,7 @@ pub struct ModelProfile {
 #[derive(Default)]
 struct State {
     models: BTreeMap<ActorId, ModelProfile>,
-    buys: BTreeMap<(ActorId, ContentId), ElGamalPointCipher>,
+    buys: BTreeMap<ActorId, BTreeMap<(ActorId, ContentId), ElGamalPointCipher>>,
     content_next_id: ContentId,
 }
 
@@ -210,7 +190,11 @@ impl Onlyhack {
         let buyer_id = Syscall::message_source();
 
         let state = state_mut();
-        if let Some(point_cipher) = state.buys.get(&(buyer_id, content_id)) {
+        if let Some(point_cipher) = state
+            .buys
+            .get(&buyer_id)
+            .and_then(|buyer_buys| buyer_buys.get(&(model_id, content_id)))
+        {
             return ok(point_cipher.clone()).with_value(transferred);
         }
 
@@ -257,9 +241,13 @@ impl Onlyhack {
 
         state
             .buys
-            .insert((buyer_id, content_id), grant.enc_m_under_pk.clone());
+            .entry(buyer_id)
+            .or_default()
+            .insert((model_id, content_id), grant.enc_m_under_pk.clone());
 
-        if gstd::msg::send(model_id, b"", transferred).is_err() {
+        let fee = transferred / 50;
+        let model_payout = transferred - fee;
+        if gstd::msg::send(model_id, b"", model_payout).is_err() {
             // Failed to send the payment ... so left the value in the contract for now
         }
 
@@ -283,14 +271,63 @@ impl Onlyhack {
         paid_content.public_data.enc_x.clone()
     }
 
-    // #[export]
-    // pub fn get_profiles(&self) -> Vec<ProfileInfo> {
-    //     let state = state();
+    #[export]
+    pub fn get_profiles(&self) -> Vec<ProfileInfo> {
+        let state = state();
+        let current_user = Syscall::message_source();
+        let purchased_by_user = state.buys.get(&current_user);
 
-    //     let mut output = vec![];
-    //     for model in state.models.iter() {
-    //     }
-    // }
+        state
+            .models
+            .iter()
+            .map(|(model_id, profile)| {
+                let open_content = profile
+                    .open_content
+                    .iter()
+                    .map(|(content_id, preview)| (*content_id, preview.clone()))
+                    .collect();
+
+                let hidden_content = profile
+                    .paid_content
+                    .iter()
+                    .filter(|(content_id, _)| {
+                        !purchased_by_user
+                            .map(|buyer_buys| buyer_buys.contains_key(&(*model_id, **content_id)))
+                            .unwrap_or(false)
+                    })
+                    .map(|(content_id, paid_content)| {
+                        (*content_id, paid_content.preview.clone(), paid_content.price)
+                    })
+                    .collect();
+
+                let purchased_content = profile
+                    .paid_content
+                    .iter()
+                    .filter_map(|(content_id, paid_content)| {
+                        purchased_by_user.and_then(|buyer_buys| {
+                            buyer_buys.get(&(*model_id, *content_id)).map(|m_under_pk| {
+                                (
+                                    *content_id,
+                                    paid_content.preview.clone(),
+                                    paid_content.price,
+                                    paid_content.public_data.enc_x.clone(),
+                                    m_under_pk.encode(),
+                                )
+                            })
+                        })
+                    })
+                    .collect();
+
+                (
+                    profile.name.clone(),
+                    profile.about.clone(),
+                    open_content,
+                    purchased_content,
+                    hidden_content,
+                )
+            })
+            .collect()
+    }
 
     // #[export]
     // pub fn get_all_purchased_content(&self) -> Vec<(ContentId, EncryptedContent)> {

@@ -10,5 +10,6 @@ service Onlyhack {
   ModelCreateProfile : (name: str, about: str, open_content: vec str) -> null;
   query GetEncContent : (model_id: actor_id, content_id: u64) -> vec u8;
   query GetProfile : (model_id: actor_id) -> struct { str, str, vec struct { u64, str }, vec struct { u64, struct { str, str, u128 } } };
+  query GetProfiles : () -> vec struct { str, str, vec struct { u64, str }, vec struct { u64, str, u128, vec u8, vec u8 }, vec struct { u64, str, u128 } };
 };
 

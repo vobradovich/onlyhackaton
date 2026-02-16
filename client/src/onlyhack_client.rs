@@ -64,6 +64,7 @@ pub mod onlyhack {
             &self,
             model_id: ActorId,
         ) -> sails_rs::client::PendingCall<io::GetProfile, Self::Env>;
+        fn get_profiles(&self) -> sails_rs::client::PendingCall<io::GetProfiles, Self::Env>;
     }
     pub struct OnlyhackImpl;
     impl<E: sails_rs::client::GearEnv> Onlyhack for sails_rs::client::Service<OnlyhackImpl, E> {
@@ -103,6 +104,9 @@ pub mod onlyhack {
         ) -> sails_rs::client::PendingCall<io::GetProfile, Self::Env> {
             self.pending_call((model_id,))
         }
+        fn get_profiles(&self) -> sails_rs::client::PendingCall<io::GetProfiles, Self::Env> {
+            self.pending_call(())
+        }
     }
 
     pub mod io {
@@ -112,5 +116,6 @@ pub mod onlyhack {
         sails_rs::io_struct_impl!(ModelCreateProfile (name: String, about: String, open_content: Vec<String>) -> ());
         sails_rs::io_struct_impl!(GetEncContent (model_id: ActorId, content_id: u64) -> Vec<u8>);
         sails_rs::io_struct_impl!(GetProfile (model_id: ActorId) -> (String,String,Vec<(u64,String,)>,Vec<(u64,(String,String,u128,),)>,));
+        sails_rs::io_struct_impl!(GetProfiles () -> Vec<(String,String,Vec<(u64,String,)>,Vec<(u64,String,u128,Vec<u8>,Vec<u8>,)>,Vec<(u64,String,u128,)>,)>);
     }
 }

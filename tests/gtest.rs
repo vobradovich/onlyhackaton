@@ -54,6 +54,10 @@ async fn mvp_purchase_flow_works() {
         .unwrap();
 
     let user = dleq_secret::gen_keypair();
+    let payment = 55u128;
+    let fee = payment / 50;
+    let model_payout = payment - fee;
+    let program_balance_before = program.balance();
 
     let _message_id = service_client
         .buy_content(
@@ -61,7 +65,7 @@ async fn mvp_purchase_flow_works() {
             content_id,
             hex::encode(PK(user.pk).encode()),
         )
-        .with_params(|p| p.with_actor_id(FAN_ID.into()).with_value(55))
+        .with_params(|p| p.with_actor_id(FAN_ID.into()).with_value(payment))
         .send_one_way()
         .unwrap();
 
@@ -103,6 +107,21 @@ async fn mvp_purchase_flow_works() {
 
     let dec_content = x.unwrap().decrypt(enc, user.sk);
     assert_eq!(dec_content, content);
+    let payout_log = Log::builder()
+        .source(program.id())
+        .dest(MODEL_ID)
+        .payload_bytes([]);
+    assert!(env.system().get_mailbox(MODEL_ID).contains(&payout_log));
+    let model_balance_before_claim = env.system().balance_of(MODEL_ID);
+    env.system()
+        .get_mailbox(MODEL_ID)
+        .claim_value(payout_log)
+        .unwrap();
+    assert_eq!(
+        env.system().balance_of(MODEL_ID),
+        model_balance_before_claim + model_payout
+    );
+    assert_eq!(program.balance(), program_balance_before + fee);
 
     println!("Decrypted content: {:?}", String::from_utf8(dec_content).unwrap());
 
@@ -169,4 +188,126 @@ async fn mvp_purchase_flow_works() {
     //     .with_params(|p| p.with_actor_id(STRANGER_ID.into()))
     //     .await;
     // assert!(unauthorized_add.is_err());
+}
+
+#[tokio::test]
+async fn get_profiles_hides_purchased_content_from_hidden_list() {
+    let system = System::new();
+
+    system.init_logger_with_default_filter("gwasm=debug,gtest=debug,sails_rs=debug");
+    system.mint_to(DEPLOYER_ID, 100_000_000_000_000);
+    system.mint_to(MODEL_ID, 100_000_000_000_000);
+    system.mint_to(FAN_ID, 100_000_000_000_000);
+    system.mint_to(STRANGER_ID, 100_000_000_000_000);
+    let program_code_id = system.submit_code(onlyhack::WASM_BINARY);
+
+    let env = GtestEnv::new(system, DEPLOYER_ID.into());
+
+    let program = env
+        .deploy::<onlyhack_client::OnlyhackClientProgram>(program_code_id, b"salt".to_vec())
+        .create()
+        .await
+        .unwrap();
+
+    let mut service_client = program.onlyhack();
+
+    service_client
+        .model_create_profile("alice".into(), "model".into(), vec!["free-teaser".to_string()])
+        .with_params(|p| p.with_actor_id(MODEL_ID.into()))
+        .await
+        .unwrap();
+
+    let content_a = b"paid-a-real".to_vec();
+    let (public_data_a, pre_proof_a) = dleq_secret::pre_proof_and_public_for_message(&content_a);
+    let content_a_id = service_client
+        .model_add_paid_content(("paid-a-preview".to_string(), hex::encode(public_data_a.encode()), 55))
+        .with_params(|p| p.with_actor_id(MODEL_ID.into()))
+        .await
+        .unwrap();
+
+    let content_b = b"paid-b-real".to_vec();
+    let (public_data_b, _) = dleq_secret::pre_proof_and_public_for_message(&content_b);
+    let content_b_id = service_client
+        .model_add_paid_content(("paid-b-preview".to_string(), hex::encode(public_data_b.encode()), 77))
+        .with_params(|p| p.with_actor_id(MODEL_ID.into()))
+        .await
+        .unwrap();
+
+    let user = dleq_secret::gen_keypair();
+    let payment = 55u128;
+    let fee = payment / 50;
+    let model_payout = payment - fee;
+    let program_balance_before = program.balance();
+    let _message_id = service_client
+        .buy_content(
+            MODEL_ID.into(),
+            content_a_id,
+            hex::encode(PK(user.pk).encode()),
+        )
+        .with_params(|p| p.with_actor_id(FAN_ID.into()).with_value(payment))
+        .send_one_way()
+        .unwrap();
+
+    let res = env.system().run_next_block();
+    let pk = PK::decode(
+        &mut res
+            .log
+            .iter()
+            .find(|log| log.destination() == MODEL_ID.into())
+            .expect("model should receive a message")
+            .payload(),
+    )
+    .unwrap();
+
+    let log = Log::builder().dest(MODEL_ID).source(program.id());
+    let grant = pre_proof_a.proof_for_pk(pk.0);
+    env.system()
+        .get_mailbox(MODEL_ID)
+        .reply(log, grant, 0)
+        .unwrap();
+    env.system().run_next_block();
+    let payout_log = Log::builder()
+        .source(program.id())
+        .dest(MODEL_ID)
+        .payload_bytes([]);
+    assert!(env.system().get_mailbox(MODEL_ID).contains(&payout_log));
+    let model_balance_before_claim = env.system().balance_of(MODEL_ID);
+    env.system()
+        .get_mailbox(MODEL_ID)
+        .claim_value(payout_log)
+        .unwrap();
+    assert_eq!(
+        env.system().balance_of(MODEL_ID),
+        model_balance_before_claim + model_payout
+    );
+    assert_eq!(program.balance(), program_balance_before + fee);
+
+    let profiles_for_fan = service_client
+        .get_profiles()
+        .with_params(|p| p.with_actor_id(FAN_ID.into()))
+        .await
+        .unwrap();
+    let fan_model_profile = profiles_for_fan
+        .iter()
+        .find(|profile| profile.0 == "alice")
+        .expect("alice profile should exist");
+
+    assert!(fan_model_profile.3.iter().any(|item| item.0 == content_a_id));
+    assert!(!fan_model_profile.3.iter().any(|item| item.0 == content_b_id));
+    assert!(!fan_model_profile.4.iter().any(|item| item.0 == content_a_id));
+    assert!(fan_model_profile.4.iter().any(|item| item.0 == content_b_id));
+
+    let profiles_for_stranger = service_client
+        .get_profiles()
+        .with_params(|p| p.with_actor_id(STRANGER_ID.into()))
+        .await
+        .unwrap();
+    let stranger_model_profile = profiles_for_stranger
+        .iter()
+        .find(|profile| profile.0 == "alice")
+        .expect("alice profile should exist");
+
+    assert!(stranger_model_profile.3.is_empty());
+    assert!(stranger_model_profile.4.iter().any(|item| item.0 == content_a_id));
+    assert!(stranger_model_profile.4.iter().any(|item| item.0 == content_b_id));
 }
